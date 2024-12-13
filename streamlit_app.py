@@ -4,7 +4,6 @@ from datetime import date
 import folium
 from streamlit_folium import st_folium
 from folium.plugins import Draw
-import geopandas as gpd
 import requests
 import json
 import os
