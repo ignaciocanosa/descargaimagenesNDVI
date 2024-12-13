@@ -4,17 +4,18 @@ import folium
 from streamlit_folium import st_folium
 from datetime import date
 import requests
+from folium.plugins import Draw
 
 # Configurar la aplicación
 st.title("Descarga de Imágenes NDVI")
 st.subheader("Dibuja un polígono y selecciona el rango de fechas")
 
-# Configurar mapa inicial
-m = folium.Map(location=[-34.6, -58.4], zoom_start=6)
-folium.TileLayer('OpenStreetMap').add_to(m)
+# Configurar mapa inicial con vista satelital
+m = folium.Map(location=[-34.6, -58.4], zoom_start=6, tiles='Stamen Terrain')
+folium.TileLayer('Stamen Terrain').add_to(m)
 folium.LayerControl().add_to(m)
 
-draw_control = folium.plugins.Draw(export=True)
+draw_control = Draw(export=True)
 m.add_child(draw_control)
 
 # Mostrar el mapa
@@ -31,6 +32,9 @@ if st.button("Descargar NDVI"):
         st.json(polygon)  # Mostrar el polígono
 
         # Simulación de descarga
-        st.success("Imágenes descargadas correctamente.")
+        file_name = st.text_input("Nombre del archivo:", "ndvi_poligono.geojson")
+        with open(file_name, "w") as f:
+            f.write(str(polygon))
+        st.success(f"Archivo guardado como {file_name}.")
     else:
         st.error("Por favor, dibuja un polígono antes de descargar.")
