@@ -11,8 +11,8 @@ st.title("Descarga de Imágenes NDVI")
 st.subheader("Dibuja un polígono y selecciona el rango de fechas")
 
 # Configurar mapa inicial con vista satelital
-m = folium.Map(location=[-34.6, -58.4], zoom_start=6, tiles='Stamen Terrain')
-folium.TileLayer('Stamen Terrain').add_to(m)
+m = folium.Map(location=[-34.6, -58.4], zoom_start=6, tiles='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors')
+folium.TileLayer('Stamen Terrain', attr='&copy; Stamen Design').add_to(m)
 folium.LayerControl().add_to(m)
 
 draw_control = Draw(export=True)
@@ -38,3 +38,4 @@ if st.button("Descargar NDVI"):
         st.success(f"Archivo guardado como {file_name}.")
     else:
         st.error("Por favor, dibuja un polígono antes de descargar.")
+        
