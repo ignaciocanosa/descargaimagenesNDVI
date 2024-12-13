@@ -1,43 +1,25 @@
 import streamlit as st
 st.cache_resource.clear()
-from datetime import date
 import folium
 from streamlit_folium import st_folium
+import geemap
+import ee
 from folium.plugins import Draw
-import json
+
+# Autenticarte con GEE (esto solo es necesario la primera vez)
+# ee.Authenticate() 
+
+# Iniciar la sesión de GEE
+ee.Initialize()
 
 # Configurar la aplicación
-st.title("Descarga de Imágenes NDVI")
+st.title("Descarga de Imágenes NDVI desde GEE")
 st.subheader("Dibuja un polígono y selecciona el rango de fechas")
 
-# Asegúrate de tener un token de Mapbox válido
-MAPBOX_TOKEN = "YOUR_MAPBOX_ACCESS_TOKEN"
-
-# Selección de la capa base (relieve o satélite)
-base_layer = st.selectbox("Selecciona el tipo de capa base:", ["Relieve", "Satélite"])
-
-# Configurar el mapa
+# Configuración de mapa con Folium
 m = folium.Map(location=[-34.6, -58.4], zoom_start=6)
 
-# Configurar capa base según la selección
-if base_layer == "Relieve":
-    folium.TileLayer(
-        tiles=f'https://api.mapbox.com/styles/v1/mapbox/terrain-rgb-v9/tiles/{{z}}/{{x}}/{{y}}?access_token={MAPBOX_TOKEN}',
-        attr='Mapbox',
-        name='Relieve',
-        overlay=True,
-        control=True
-    ).add_to(m)
-elif base_layer == "Satélite":
-    folium.TileLayer(
-        tiles=f'https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v11/tiles/{{z}}/{{x}}/{{y}}?access_token={MAPBOX_TOKEN}',
-        attr='Mapbox',
-        name='Satélite',
-        overlay=True,
-        control=True
-    ).add_to(m)
-
-# Agregar herramienta para dibujar polígono
+# Agregar herramientas de dibujo para polígono
 draw_control = Draw(export=True)
 m.add_child(draw_control)
 
@@ -48,46 +30,61 @@ output = st_folium(m, width=700, height=500)
 start_date = st.date_input("Fecha de inicio", date(2023, 1, 1))
 end_date = st.date_input("Fecha de fin", date(2023, 12, 31))
 
-# Función para descargar imágenes NDVI usando la API de Google Earth Engine (GEE)
+# Función para descargar imágenes NDVI desde GEE
 def download_ndvi_image(polygon, start_date, end_date):
-    # Aquí deberías realizar la autenticación y solicitud a GEE o un servicio similar.
-    # Este es un ejemplo con una API simulada, reemplázalo con el código correcto para acceder a GEE.
+    # Convertir el polígono a objeto de GEE
+    polygon = ee.Geometry.Polygon(polygon['coordinates'])
 
-    # Convierte el polígono a GeoJSON
-    geojson_polygon = json.dumps(polygon)
-    
-    # Configurar la solicitud (esto es un ejemplo, consulta la documentación de GEE)
-    url = "https://earthengine.googleapis.com/v1/your-endpoint"
-    params = {
-        "polygon": geojson_polygon,
-        "start_date": start_date,
-        "end_date": end_date
+    # Definir las fechas de inicio y fin
+    start_date_str = str(start_date)
+    end_date_str = str(end_date)
+
+    # Filtrar imagen de satélite Sentinel-2 para el periodo deseado
+    collection = ee.ImageCollection('COPERNICUS/S2') \
+        .filterBounds(polygon) \
+        .filterDate(ee.Date(start_date_str), ee.Date(end_date_str)) \
+        .map(lambda image: image.normalizedDifference(['B8', 'B4']).rename('NDVI'))  # NDVI usando bandas B8 (NIR) y B4 (Red)
+
+    # Obtener la imagen más reciente de la colección
+    image = collection.median().clip(polygon)
+
+    # Mostrar la imagen NDVI en el mapa
+    vis_params = {
+        'min': -1,
+        'max': 1,
+        'palette': ['blue', 'white', 'green']
     }
 
-    response = requests.post(url, json=params)
-    if response.status_code == 200:
-        image_url = response.json().get('image_url')
-        return image_url
-    else:
-        st.error("Error al obtener la imagen NDVI")
-        return None
+    # Añadir la imagen NDVI como capa en el mapa
+    folium.TileLayer(
+        tiles=image.getMapId(vis_params)['tile_fetcher'].url_format,
+        attr='Google Earth Engine',
+        name='NDVI',
+        overlay=True,
+        control=True
+    ).add_to(m)
 
-# Botón para procesar la descarga de NDVI
+    # Retornar URL de la imagen (si se desea)
+    image_url = image.getMapId(vis_params)['tile_fetcher'].url_format
+    return image_url
+
+# Botón para descargar NDVI
 if st.button("Descargar NDVI"):
     if output and 'last_active_drawing' in output:
         polygon = output['last_active_drawing']['geometry']
         st.json(polygon)  # Mostrar el polígono
 
-        # Llamada a la función para descargar la imagen NDVI
+        # Descargar la imagen NDVI usando la función
         image_url = download_ndvi_image(polygon, start_date, end_date)
         
-        if image_url:
-            st.image(image_url, caption="Imagen NDVI", use_column_width=True)
+        # Mostrar la imagen NDVI en el app
+        st.image(image_url, caption="Imagen NDVI", use_column_width=True)
 
-            # Proceso de guardado (esto es una simulación, reemplazar con la lógica correcta de descarga)
-            file_name = st.text_input("Nombre del archivo:", "ndvi_imagen.tiff")
-            with open(file_name, "w") as f:
-                f.write("Simulación de archivo de imagen NDVI")
-            st.success(f"Archivo guardado como {file_name}.")
+        # Simular la descarga del archivo (esto debería modificarse según el flujo de datos que desees)
+        file_name = st.text_input("Nombre del archivo:", "ndvi_imagen.tiff")
+        with open(file_name, "w") as f:
+            f.write("Simulación de archivo NDVI")
+        st.success(f"Archivo guardado como {file_name}.")
     else:
         st.error("Por favor, dibuja un polígono antes de descargar.")
+
