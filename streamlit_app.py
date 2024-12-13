@@ -74,4 +74,4 @@ if st.button("Descargar NDVI"):
             st.image(image_url, caption="Imagen NDVI", use_column_width=True)
 
             # Proceso de guardado (esto es una simulación, reemplazar con la lógica correcta de descarga)
-            file_name = st.text_input("Nombre del archivo:", "
+            file_name = st.text_input("Nombre del archivo:", "ndvi_imagen.tiff")
