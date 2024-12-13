@@ -1,3 +1,4 @@
 streamlit
-earthengine-api
+folium
 streamlit-folium
+requests
