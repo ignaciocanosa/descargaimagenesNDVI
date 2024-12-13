@@ -1,90 +1,61 @@
 import streamlit as st
 st.cache_resource.clear()
-import folium
-from streamlit_folium import st_folium
-import geemap
 import ee
-from folium.plugins import Draw
+import geopandas as gpd
+import folium
+from folium import plugins
+import geopandas as gpd
 
-# Autenticarte con GEE (esto solo es necesario la primera vez)
-# ee.Authenticate() 
+# Autenticación con Google Earth Engine usando las claves almacenadas en los secretos de Streamlit
+def authenticate_gee():
+    private_key = st.secrets["GEE_PRIVATE_KEY"]
+    project_id = st.secrets["GEE_PROJECT_ID"]
+    client_email = st.secrets["GEE_CLIENT_EMAIL"]
+    client_id = st.secrets["GEE_CLIENT_ID"]
+    
+    # Autenticación en Google Earth Engine usando las credenciales proporcionadas
+    credentials = ee.ServiceAccountCredentials(client_email, private_key)
+    ee.Initialize(credentials)
 
-# Iniciar la sesión de GEE
-ee.Initialize()
+# Llamada a la función para autenticarse en Google Earth Engine
+authenticate_gee()
 
-# Configurar la aplicación
-st.title("Descarga de Imágenes NDVI desde GEE")
-st.subheader("Dibuja un polígono y selecciona el rango de fechas")
+# Título de la app
+st.title("Visualización de Lotes en Google Earth Engine")
 
-# Configuración de mapa con Folium
-m = folium.Map(location=[-34.6, -58.4], zoom_start=6)
+# Opción para ingresar coordenadas o cargar un archivo GeoJSON
+upload_type = st.selectbox("Selecciona el tipo de entrada de datos", ["Coordenadas", "Archivo GeoJSON"])
 
-# Agregar herramientas de dibujo para polígono
-draw_control = Draw(export=True)
-m.add_child(draw_control)
+if upload_type == "Coordenadas":
+    lat = st.number_input("Latitud", min_value=-90.0, max_value=90.0, value=35.0)
+    lon = st.number_input("Longitud", min_value=-180.0, max_value=180.0, value=-60.0)
+else:
+    uploaded_file = st.file_uploader("Sube tu archivo GeoJSON", type=["geojson"])
+    if uploaded_file is not None:
+        # Cargar archivo GeoJSON
+        gdf = gpd.read_file(uploaded_file)
+        st.write(gdf)
 
-# Mostrar el mapa
-output = st_folium(m, width=700, height=500)
+# Mostrar la ubicación en un mapa interactivo
+if upload_type == "Coordenadas":
+    map_center = [lat, lon]
+else:
+    map_center = [gdf.geometry.centroid.y.mean(), gdf.geometry.centroid.x.mean()]
 
-# Selección de fechas
-start_date = st.date_input("Fecha de inicio", date(2023, 1, 1))
-end_date = st.date_input("Fecha de fin", date(2023, 12, 31))
+# Crear mapa de Folium
+m = folium.Map(location=map_center, zoom_start=12)
 
-# Función para descargar imágenes NDVI desde GEE
-def download_ndvi_image(polygon, start_date, end_date):
-    # Convertir el polígono a objeto de GEE
-    polygon = ee.Geometry.Polygon(polygon['coordinates'])
+# Agregar marcadores según el tipo de entrada
+if upload_type == "Coordenadas":
+    folium.Marker([lat, lon], popup="Lote").add_to(m)
+elif upload_type == "Archivo GeoJSON":
+    folium.GeoJson(gdf).add_to(m)
 
-    # Definir las fechas de inicio y fin
-    start_date_str = str(start_date)
-    end_date_str = str(end_date)
+# Mostrar el mapa en Streamlit
+folium_static(m)
 
-    # Filtrar imagen de satélite Sentinel-2 para el periodo deseado
-    collection = ee.ImageCollection('COPERNICUS/S2') \
-        .filterBounds(polygon) \
-        .filterDate(ee.Date(start_date_str), ee.Date(end_date_str)) \
-        .map(lambda image: image.normalizedDifference(['B8', 'B4']).rename('NDVI'))  # NDVI usando bandas B8 (NIR) y B4 (Red)
+# Agregar plugin para dibujar
+draw = plugins.Draw(export=True)
+draw.add_to(m)
 
-    # Obtener la imagen más reciente de la colección
-    image = collection.median().clip(polygon)
-
-    # Mostrar la imagen NDVI en el mapa
-    vis_params = {
-        'min': -1,
-        'max': 1,
-        'palette': ['blue', 'white', 'green']
-    }
-
-    # Añadir la imagen NDVI como capa en el mapa
-    folium.TileLayer(
-        tiles=image.getMapId(vis_params)['tile_fetcher'].url_format,
-        attr='Google Earth Engine',
-        name='NDVI',
-        overlay=True,
-        control=True
-    ).add_to(m)
-
-    # Retornar URL de la imagen (si se desea)
-    image_url = image.getMapId(vis_params)['tile_fetcher'].url_format
-    return image_url
-
-# Botón para descargar NDVI
-if st.button("Descargar NDVI"):
-    if output and 'last_active_drawing' in output:
-        polygon = output['last_active_drawing']['geometry']
-        st.json(polygon)  # Mostrar el polígono
-
-        # Descargar la imagen NDVI usando la función
-        image_url = download_ndvi_image(polygon, start_date, end_date)
-        
-        # Mostrar la imagen NDVI en el app
-        st.image(image_url, caption="Imagen NDVI", use_column_width=True)
-
-        # Simular la descarga del archivo (esto debería modificarse según el flujo de datos que desees)
-        file_name = st.text_input("Nombre del archivo:", "ndvi_imagen.tiff")
-        with open(file_name, "w") as f:
-            f.write("Simulación de archivo NDVI")
-        st.success(f"Archivo guardado como {file_name}.")
-    else:
-        st.error("Por favor, dibuja un polígono antes de descargar.")
-
+st.write("Usa la herramienta para dibujar un lote en el mapa.")
