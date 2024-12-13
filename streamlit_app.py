@@ -6,27 +6,27 @@ from streamlit_folium import st_folium
 from folium.plugins import Draw
 import requests
 import json
-import os
 
 # Configurar la aplicación
 st.title("Descarga de Imágenes NDVI")
 st.subheader("Dibuja un polígono y selecciona el rango de fechas")
 
-# Configurar mapa inicial con capa de relieve usando Mapbox
-m = folium.Map(location=[-34.6, -58.4], zoom_start=6,
-               tiles='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attr='&copy; OpenStreetMap contributors')
-folium.TileLayer('Stamen Terrain', attr='&copy; Stamen Design').add_to(m)
+# Asegúrate de tener un token de Mapbox válido
+MAPBOX_TOKEN = "YOUR_MAPBOX_ACCESS_TOKEN"
 
-# Agregar capa de relieve usando Mapbox
+# Configurar mapa inicial con la capa de relieve de Mapbox
+m = folium.Map(location=[-34.6, -58.4], zoom_start=6)
+
+# Usar Mapbox para el estilo de relieve
 folium.TileLayer(
-    tiles='https://api.mapbox.com/styles/v1/mapbox/terrain-rgb-v9/tiles/{z}/{x}/{y}?access_token=YOUR_MAPBOX_ACCESS_TOKEN',
-    attr='&copy; Mapbox', name='Relieve',
-    overlay=True, control=True
+    tiles=f'https://api.mapbox.com/styles/v1/mapbox/terrain-rgb-v9/tiles/{{z}}/{{x}}/{{y}}?access_token={MAPBOX_TOKEN}',
+    attr='Mapbox',
+    name='Relieve',
+    overlay=True,
+    control=True
 ).add_to(m)
 
-folium.LayerControl().add_to(m)
-
-# Herramienta de dibujo
+# Agregar herramienta para dibujar polígono
 draw_control = Draw(export=True)
 m.add_child(draw_control)
 
@@ -74,9 +74,4 @@ if st.button("Descargar NDVI"):
             st.image(image_url, caption="Imagen NDVI", use_column_width=True)
 
             # Proceso de guardado (esto es una simulación, reemplazar con la lógica correcta de descarga)
-            file_name = st.text_input("Nombre del archivo:", "ndvi_imagen.tiff")
-            with open(file_name, "w") as f:
-                f.write("Simulación de archivo de imagen NDVI")
-            st.success(f"Archivo guardado como {file_name}.")
-    else:
-        st.error("Por favor, dibuja un polígono antes de descargar.")
+            file_name = st.text_input("Nombre del archivo:", "
