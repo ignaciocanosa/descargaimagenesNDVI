@@ -1,4 +1,5 @@
 import streamlit as st
+st.cache_resource.clear()
 import folium
 from streamlit_folium import st_folium
 from datetime import date
