@@ -6,14 +6,14 @@ import folium
 from folium import plugins
 import geopandas as gpd
 
-# Autenticación con Google Earth Engine usando las claves almacenadas en los secretos de Streamlit
+# Autenticación con Google Earth Engine usando las claves almacenadas en secrets.toml
 def authenticate_gee():
-    private_key = st.secrets["GEE_PRIVATE_KEY"]
-    project_id = st.secrets["GEE_PROJECT_ID"]
-    client_email = st.secrets["GEE_CLIENT_EMAIL"]
-    client_id = st.secrets["GEE_CLIENT_ID"]
+    # Acceso a las claves desde st.secrets
+    private_key = st.secrets["general"]["GEE_PRIVATE_KEY"]
+    project_id = st.secrets["general"]["GEE_PROJECT_ID"]
+    client_email = st.secrets["general"]["GEE_CLIENT_EMAIL"]
+    client_id = st.secrets["general"]["GEE_CLIENT_ID"]
     
-    # Autenticación en Google Earth Engine usando las credenciales proporcionadas
     credentials = ee.ServiceAccountCredentials(client_email, private_key)
     ee.Initialize(credentials)
 
