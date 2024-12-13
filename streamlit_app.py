@@ -4,7 +4,6 @@ from datetime import date
 import folium
 from streamlit_folium import st_folium
 from folium.plugins import Draw
-import requests
 import json
 
 # Configurar la aplicación
@@ -14,17 +13,29 @@ st.subheader("Dibuja un polígono y selecciona el rango de fechas")
 # Asegúrate de tener un token de Mapbox válido
 MAPBOX_TOKEN = "YOUR_MAPBOX_ACCESS_TOKEN"
 
-# Configurar mapa inicial con la capa de relieve de Mapbox
+# Selección de la capa base (relieve o satélite)
+base_layer = st.selectbox("Selecciona el tipo de capa base:", ["Relieve", "Satélite"])
+
+# Configurar el mapa
 m = folium.Map(location=[-34.6, -58.4], zoom_start=6)
 
-# Usar Mapbox para el estilo de relieve
-folium.TileLayer(
-    tiles=f'https://api.mapbox.com/styles/v1/mapbox/terrain-rgb-v9/tiles/{{z}}/{{x}}/{{y}}?access_token={MAPBOX_TOKEN}',
-    attr='Mapbox',
-    name='Relieve',
-    overlay=True,
-    control=True
-).add_to(m)
+# Configurar capa base según la selección
+if base_layer == "Relieve":
+    folium.TileLayer(
+        tiles=f'https://api.mapbox.com/styles/v1/mapbox/terrain-rgb-v9/tiles/{{z}}/{{x}}/{{y}}?access_token={MAPBOX_TOKEN}',
+        attr='Mapbox',
+        name='Relieve',
+        overlay=True,
+        control=True
+    ).add_to(m)
+elif base_layer == "Satélite":
+    folium.TileLayer(
+        tiles=f'https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v11/tiles/{{z}}/{{x}}/{{y}}?access_token={MAPBOX_TOKEN}',
+        attr='Mapbox',
+        name='Satélite',
+        overlay=True,
+        control=True
+    ).add_to(m)
 
 # Agregar herramienta para dibujar polígono
 draw_control = Draw(export=True)
@@ -75,3 +86,8 @@ if st.button("Descargar NDVI"):
 
             # Proceso de guardado (esto es una simulación, reemplazar con la lógica correcta de descarga)
             file_name = st.text_input("Nombre del archivo:", "ndvi_imagen.tiff")
+            with open(file_name, "w") as f:
+                f.write("Simulación de archivo de imagen NDVI")
+            st.success(f"Archivo guardado como {file_name}.")
+    else:
+        st.error("Por favor, dibuja un polígono antes de descargar.")
